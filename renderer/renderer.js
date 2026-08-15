@@ -3,9 +3,10 @@
 // ---- State ----------------------------------------------------------------
 
 let self = null;
-const channels = ['general'];
+let currentGroup = null;           // name of the group we're in, or null (landing)
+let channels = ['general'];
 let currentChannel = 'general';
-const messages = new Map();        // channel -> [ {kind, id, username, color, text, ts} ]
+let messages = new Map();          // channel -> [ {kind, id, username, color, text, ts} ]
 const members = new Map();         // id -> { id, username, color }
 const typing = new Map();          // id -> { username, timer }
 
@@ -16,6 +17,17 @@ const GROUP_WINDOW_MS = 5 * 60 * 1000;
 // ---- Element refs ---------------------------------------------------------
 
 const el = {
+  app: document.getElementById('app'),
+  landing: document.getElementById('landing'),
+  landingGroup: document.getElementById('landing-group'),
+  landingPass: document.getElementById('landing-pass'),
+  landingJoin: document.getElementById('landing-join'),
+  landingError: document.getElementById('landing-error'),
+  landingName: document.getElementById('landing-name'),
+  landingEditName: document.getElementById('landing-edit-name'),
+  groupIcon: document.getElementById('group-icon'),
+  groupName: document.getElementById('group-name'),
+  leaveGroup: document.getElementById('leave-group'),
   channelList: document.getElementById('channel-list'),
   currentChannel: document.getElementById('current-channel'),
   messages: document.getElementById('messages'),
@@ -336,7 +348,7 @@ el.addChannel.addEventListener('click', async () => {
 el.addPeer.addEventListener('click', async () => {
   const res = await openModal({
     title: 'Connect to a Peer',
-    desc: 'Peers on the same LAN are found automatically. Use this to reach someone on another network by IP address and port.',
+    desc: 'Members of this group on the same LAN are found automatically. Use this to reach a member on another network by IP address and port — you must both be in a group with the same name and passphrase.',
     fields: [
       { name: 'host', label: 'IP address / host', placeholder: '192.168.1.50' },
       { name: 'port', label: 'Port', placeholder: 'e.g. 51234' },
@@ -349,10 +361,10 @@ el.addPeer.addEventListener('click', async () => {
   }
 });
 
-el.editName.addEventListener('click', async () => {
+async function promptEditName() {
   const res = await openModal({
     title: 'Change Display Name',
-    desc: 'This name is how others on the network see you. It resets when you close the app.',
+    desc: 'This name is how others in the group see you. It resets when you close the app.',
     fields: [{ name: 'name', label: 'Display name', value: self.username }],
     okLabel: 'Save',
   });
@@ -360,9 +372,72 @@ el.editName.addEventListener('click', async () => {
     self.username = res.name;
     window.net.setUsername(res.name);
     renderSelf();
-    renderMembers();
+    updateLandingName();
+    if (currentGroup) renderMembers();
   }
-});
+}
+
+el.editName.addEventListener('click', promptEditName);
+el.landingEditName.addEventListener('click', promptEditName);
+
+// ---- Groups ---------------------------------------------------------------
+
+function resetGroupState() {
+  channels = ['general'];
+  currentChannel = 'general';
+  messages = new Map();
+  messages.set('general', []);
+  members.clear();
+  for (const t of typing.values()) clearTimeout(t.timer);
+  typing.clear();
+}
+
+function enterGroup(name) {
+  currentGroup = name;
+  resetGroupState();
+  el.groupName.textContent = name;
+  el.groupName.title = name;
+  el.groupIcon.textContent = initials(name);
+  el.groupIcon.title = name;
+  el.landing.classList.add('hidden');
+  el.app.classList.remove('hidden');
+  renderChannels();
+  selectChannel('general');
+  renderSelf();
+  renderMembers();
+  el.input.focus();
+}
+
+function exitGroup() {
+  window.net.leaveGroup();
+  currentGroup = null;
+  resetGroupState();
+  el.app.classList.add('hidden');
+  el.landing.classList.remove('hidden');
+  el.landingError.classList.add('hidden');
+  el.landingGroup.value = '';
+  el.landingPass.value = '';
+  updateLandingName();
+  el.landingGroup.focus();
+}
+
+async function doJoin() {
+  const name = el.landingGroup.value.trim();
+  const pass = el.landingPass.value;
+  if (!name) {
+    el.landingError.textContent = 'Enter a group name to join or create.';
+    el.landingError.classList.remove('hidden');
+    return;
+  }
+  el.landingError.classList.add('hidden');
+  await window.net.joinGroup(name, pass);
+  enterGroup(name);
+}
+
+el.landingJoin.addEventListener('click', doJoin);
+el.landingGroup.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
+el.landingPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
+el.leaveGroup.addEventListener('click', exitGroup);
 
 // ---- Self -----------------------------------------------------------------
 
@@ -372,24 +447,30 @@ function renderSelf() {
   el.selfAvatar.textContent = initials(self.username);
 }
 
+function updateLandingName() {
+  if (self) el.landingName.textContent = self.username;
+}
+
 // ---- Network events -------------------------------------------------------
 
 window.net.on('ready', (s) => {
   self = s;
   renderSelf();
-  renderMembers();
+  updateLandingName();
 });
 
 window.net.on('peer', (peer) => {
+  if (!currentGroup) return;
   const known = members.has(peer.id);
   members.set(peer.id, peer);
-  if (!known) addSystem(`${peer.username} joined the network.`);
+  if (!known) addSystem(`${peer.username} joined the group.`);
   renderMembers();
 });
 
 window.net.on('peer-left', (peer) => {
+  if (!currentGroup) return;
   if (members.delete(peer.id)) {
-    addSystem(`${peer.username} left the network.`);
+    addSystem(`${peer.username} left the group.`);
     renderMembers();
   }
   const t = typing.get(peer.id);
@@ -397,6 +478,7 @@ window.net.on('peer-left', (peer) => {
 });
 
 window.net.on('chat', (msg) => {
+  if (!currentGroup) return;
   pushMessage(msg.channel, {
     kind: 'chat', id: msg.id, username: msg.username, color: msg.color,
     text: msg.text, ts: msg.ts,
@@ -406,6 +488,7 @@ window.net.on('chat', (msg) => {
 });
 
 window.net.on('typing', (t) => {
+  if (!currentGroup) return;
   const existing = typing.get(t.id);
   if (existing) clearTimeout(existing.timer);
   const timer = setTimeout(() => { typing.delete(t.id); renderTyping(); }, 4000);
@@ -413,7 +496,7 @@ window.net.on('typing', (t) => {
   renderTyping();
 });
 
-window.net.on('channel', (c) => addChannel(c.name));
+window.net.on('channel', (c) => { if (currentGroup) addChannel(c.name); });
 
 window.net.on('error', (message) => {
   // Non-fatal network errors surface quietly in the console.
@@ -452,13 +535,11 @@ window.updates.on('error', (message) => console.warn('[update]', message));
 // ---- Boot -----------------------------------------------------------------
 
 async function boot() {
-  renderChannels();
-  selectChannel('general');
+  // Start on the landing screen; the app grid is shown once a group is joined.
   const s = await window.net.getSelf();
   if (s) { self = s; renderSelf(); }
-  const peers = await window.net.getPeers();
-  for (const p of peers) members.set(p.id, p);
-  renderMembers();
+  updateLandingName();
+  el.landingGroup.focus();
 }
 
 boot();

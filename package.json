@@ -1,6 +1,6 @@
 {
   "name": "ephemera",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A serverless, peer-to-peer, ephemeral Discord-style chat client. No central server; all data lives in RAM and is lost on close.",
   "main": "main.js",
   "author": "xeno-lab <xeno@xeno-lab.org>",

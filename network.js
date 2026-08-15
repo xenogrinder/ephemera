@@ -28,6 +28,19 @@ function colorFromId(id) {
   return `hsl(${hue}, 65%, 55%)`;
 }
 
+// The discovery key for a group. Only this hash travels over multicast — never
+// the plaintext name or passphrase — so a network sniffer sees opaque hashes,
+// and you can only find a group if you know its name (and passphrase, if set).
+// Note: this is light obfuscation for a LAN, not strong security. Messages
+// themselves are not encrypted.
+function groupKeyOf(name, passphrase) {
+  const normalized = String(name || '').trim().toLowerCase();
+  return crypto
+    .createHash('sha256')
+    .update('ephemera:v1\x1f' + normalized + '\x1f' + String(passphrase || ''))
+    .digest('hex');
+}
+
 class P2PNode extends EventEmitter {
   constructor({ username } = {}) {
     super();
@@ -35,6 +48,10 @@ class P2PNode extends EventEmitter {
     this.username = username || `User-${this.id.slice(0, 4)}`;
     this.color = colorFromId(this.id);
     this.tcpPort = null;
+
+    // Current group (null until joinGroup). groupName is for local display only.
+    this.groupKey = null;
+    this.groupName = null;
 
     // connections: { socket, outgoing, buffer, peerId, peer, remoteHost, listenPort, alive }
     this.connections = [];
@@ -68,7 +85,6 @@ class P2PNode extends EventEmitter {
       this.tcpPort = this._server.address().port;
       this._setupMulticast();
       this._announceTimer = setInterval(() => this._announce(), ANNOUNCE_INTERVAL_MS);
-      this._announce();
       this.emit('ready', this.self());
     });
   }
@@ -78,6 +94,34 @@ class P2PNode extends EventEmitter {
     if (this._mcast) { try { this._mcast.close(); } catch (_) {} }
     if (this._server) { try { this._server.close(); } catch (_) {} }
     for (const c of this.connections) { try { c.socket.destroy(); } catch (_) {} }
+  }
+
+  // ---- Groups --------------------------------------------------------------
+
+  joinGroup(name, passphrase) {
+    this._teardownConnections();
+    this.groupName = String(name || '').trim();
+    this.groupKey = groupKeyOf(this.groupName, passphrase);
+    this._announce(); // start broadcasting our presence in this group
+    this.emit('group-joined', { name: this.groupName });
+  }
+
+  leaveGroup() {
+    this._teardownConnections();
+    this.groupKey = null;
+    this.groupName = null;
+    this.emit('group-left', {});
+  }
+
+  // Drop every connection and all group-scoped state, so switching groups never
+  // leaks members, messages, or relay state from the previous one.
+  _teardownConnections() {
+    for (const c of this.connections) { try { c.socket.destroy(); } catch (_) {} }
+    this.connections = [];
+    this.peers.clear();
+    this.dialing.clear();
+    this.seen.clear();
+    this.seenQueue = [];
   }
 
   // ---- Discovery (UDP multicast) ------------------------------------------
@@ -99,12 +143,11 @@ class P2PNode extends EventEmitter {
   }
 
   _announce() {
-    if (!this._mcast || this.tcpPort == null) return;
+    if (!this._mcast || this.tcpPort == null || !this.groupKey) return;
     const msg = Buffer.from(JSON.stringify({
       t: 'announce',
       id: this.id,
-      username: this.username,
-      color: this.color,
+      key: this.groupKey,
       port: this.tcpPort,
     }));
     try {
@@ -113,17 +156,19 @@ class P2PNode extends EventEmitter {
   }
 
   _onAnnounce(buf, rinfo) {
+    if (!this.groupKey) return;
     let msg;
     try { msg = JSON.parse(buf.toString()); } catch (_) { return; }
     if (msg.t !== 'announce' || msg.id === this.id) return;
-    // Already connected to this peer? nothing to do.
-    if (this.peers.has(msg.id)) return;
+    if (msg.key !== this.groupKey) return; // different group — ignore
+    if (this.peers.has(msg.id)) return;    // already connected
     this._dial(normalizeHost(rinfo.address), msg.port);
   }
 
-  // ---- Manual connect ------------------------------------------------------
+  // ---- Manual connect (cross-network) --------------------------------------
 
   connectTo(host, port) {
+    if (!this.groupKey) return; // only meaningful while in a group
     this._dial(normalizeHost(host), Number(port));
   }
 
@@ -214,6 +259,7 @@ class P2PNode extends EventEmitter {
     this._send(conn, {
       t: 'hello',
       id: this.id,
+      key: this.groupKey,
       username: this.username,
       color: this.color,
       port: this.tcpPort,
@@ -231,6 +277,11 @@ class P2PNode extends EventEmitter {
   }
 
   _onHello(conn, msg) {
+    // Only peers in the same group may join our mesh.
+    if (!this.groupKey || msg.key !== this.groupKey) {
+      try { conn.socket.destroy(); } catch (_) {}
+      return;
+    }
     conn.peerId = msg.id;
     conn.listenPort = msg.port || conn.listenPort;
     conn.peer = { id: msg.id, username: msg.username, color: msg.color };
@@ -336,7 +387,6 @@ class P2PNode extends EventEmitter {
 
   setUsername(name) {
     this.username = name;
-    this._announce();
     for (const c of this.connections) this._sendHello(c);
   }
 }

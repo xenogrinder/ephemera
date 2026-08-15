@@ -8,17 +8,42 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div id="app">
+  <!-- Landing / join screen (shown when not in a group) -->
+  <div id="landing" class="landing">
+    <div class="landing-card">
+      <div class="landing-logo">E</div>
+      <h1>Ephemera</h1>
+      <p class="landing-sub">
+        Join a group by name to start chatting. It's peer-to-peer on your local
+        network — no server, and everything disappears when you leave.
+      </p>
+      <label for="landing-group">Group name</label>
+      <input id="landing-group" type="text" autocomplete="off" maxlength="64"
+             placeholder="e.g. game-night" />
+      <label for="landing-pass">Passphrase <span class="opt">— optional, to lock the group</span></label>
+      <input id="landing-pass" type="password" autocomplete="off" maxlength="128"
+             placeholder="Leave blank for an open group" />
+      <button id="landing-join" class="btn primary landing-join">Join or create group</button>
+      <div id="landing-error" class="landing-error hidden"></div>
+      <div class="landing-identity">
+        You'll appear as <span id="landing-name" class="landing-name">…</span>
+        <button id="landing-edit-name" class="linklike">change</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
     <!-- Server rail -->
     <nav class="rail">
-      <div class="server-icon active" title="Ephemera (LAN)">E</div>
+      <div id="group-icon" class="server-icon active" title="Current group">E</div>
+      <button id="leave-group" class="server-icon leave" title="Leave group">⏻</button>
       <button id="add-peer" class="server-icon add" title="Connect to a peer by IP">+</button>
     </nav>
 
     <!-- Channels sidebar -->
     <aside class="channels">
       <header class="channels-header">
-        <span>Ephemera</span>
+        <span id="group-name" class="group-name">group</span>
         <span class="net-badge" id="net-badge" title="Local peer-to-peer network">LAN</span>
       </header>
       <div class="channels-list-wrap">

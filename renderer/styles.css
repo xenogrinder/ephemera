@@ -21,6 +21,8 @@
 
 * { box-sizing: border-box; }
 
+.hidden { display: none !important; }
+
 html, body {
   margin: 0;
   height: 100%;
@@ -37,6 +39,58 @@ html, body {
   grid-template-columns: 72px 240px 1fr 240px;
   height: 100vh;
 }
+
+/* ---- Landing / join screen ---- */
+.landing {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 0%, #3a3d44 0%, var(--chat-bg) 60%);
+  padding: 24px;
+}
+.landing-card {
+  width: 400px;
+  max-width: 100%;
+  background: var(--sidebar);
+  border-radius: 12px;
+  padding: 32px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+  text-align: center;
+}
+.landing-logo {
+  width: 64px; height: 64px; margin: 0 auto 12px;
+  border-radius: 18px; background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 30px;
+}
+.landing-card h1 { margin: 0 0 8px; color: var(--text-bright); font-size: 24px; }
+.landing-sub { margin: 0 0 20px; color: var(--text-muted); font-size: 14px; line-height: 1.4; }
+.landing-card label {
+  display: block; text-align: left;
+  font-size: 12px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .5px; color: var(--text-muted); margin: 14px 0 6px;
+}
+.landing-card label .opt { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.landing-card input {
+  width: 100%; border: none; outline: none; background: var(--rail);
+  color: var(--text); padding: 11px 12px; border-radius: 4px; font-size: 15px;
+  font-family: inherit;
+}
+.landing-card input:focus { box-shadow: 0 0 0 2px var(--accent); }
+.landing-join { width: 100%; margin-top: 20px; padding: 12px; font-size: 15px; }
+.landing-error {
+  margin-top: 12px; color: #f7b2b6; font-size: 13px;
+  background: rgba(218,55,60,0.15); border-radius: 4px; padding: 8px;
+}
+.landing-identity { margin-top: 20px; font-size: 13px; color: var(--text-muted); }
+.landing-name { color: var(--text-bright); font-weight: 600; }
+.linklike {
+  background: none; border: none; color: var(--accent);
+  cursor: pointer; font-size: 13px; font-family: inherit; padding: 0 2px;
+}
+.linklike:hover { text-decoration: underline; }
 
 /* ---- Server rail ---- */
 .rail {
@@ -70,6 +124,13 @@ html, body {
   font-weight: 400;
 }
 .server-icon.add:hover { background: var(--green); color: #fff; }
+.server-icon.leave {
+  color: var(--text-muted);
+  font-size: 20px;
+  font-weight: 400;
+}
+.server-icon.leave:hover { background: var(--danger); color: #fff; }
+.rail-sep { width: 32px; height: 2px; background: var(--header-border); border-radius: 1px; margin: 2px 0; }
 
 /* ---- Channels sidebar ---- */
 .channels {
@@ -89,6 +150,10 @@ html, body {
   box-shadow: 0 1px 0 rgba(0,0,0,0.2);
   font-weight: 600;
   color: var(--text-bright);
+}
+.group-name {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-right: 8px;
 }
 .net-badge {
   font-size: 10px;

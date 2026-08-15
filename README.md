@@ -2,25 +2,45 @@
 
 A serverless, peer-to-peer, ephemeral chat client with a Discord-style interface.
 
-There is no central server. Clients on the same network find each other
-automatically, and messages travel directly between peers. Nothing is written to
-disk — every message, channel, and identity lives only in memory and is gone the
-moment the last client closes.
+There is no central server. You join a named **group** and chat over its channels
+with anyone else in the same group on your network — messages travel directly
+between peers. Nothing is written to disk: every message, channel, group, and
+identity lives only in memory and is gone the moment the last client closes.
 
 ## How it works
 
-- **Discovery (LAN):** each client announces itself on a UDP multicast group
-  (`239.255.42.98:41848`). Any client on the same network segment discovers the
-  others with zero configuration.
-- **Discovery (manual):** you can also connect to a peer on another network by
-  entering its IP address and port (the **+** button on the server rail). Peers
-  gossip their connections, so connecting to one member can pull you into the
-  rest of the mesh.
-- **Messaging:** peers hold direct TCP connections to one another. Messages are
-  newline-delimited JSON and are relayed across the mesh with de-duplication, so
-  delivery works even when the network is only partially connected.
-- **Ephemeral by design:** there is no database and no file storage. State is
-  held in RAM only.
+- **Groups:** a group is a named chat space (like a Discord server) with its own
+  channels and members. You join one by typing its name; if nobody is hosting it
+  yet, you become the first member. You're in one group at a time — leaving or
+  switching drops everything from the previous one.
+- **Discovery by name (LAN):** each client multicasts on a UDP group
+  (`239.255.42.98:41848`), but it only broadcasts a **hash of the group name and
+  passphrase** — never the plaintext. To join, the app computes the same hash and
+  connects only to peers broadcasting a match. So group names aren't visible to
+  people who don't already know them, and a wrong/absent passphrase simply never
+  finds the group. (This is light obfuscation for a LAN, not encryption — see the
+  security note below.)
+- **Passphrase-locked groups:** an optional passphrase changes the hash, so a
+  locked group and an open group of the same name are entirely separate spaces.
+- **Discovery (manual):** to reach a member on another network, connect by IP and
+  port (the **+** on the server rail). You must both be in a group with the same
+  name and passphrase; peers gossip their connections, so one link can pull you
+  into the rest of the mesh.
+- **Messaging:** peers hold direct TCP connections to the other members of their
+  group. Messages are newline-delimited JSON, relayed across the mesh with
+  de-duplication, so delivery works even when the network is only partially
+  connected.
+- **Ephemeral by design:** there is no database and no file storage. Groups,
+  channels, messages, and identities live in RAM only, and a group ceases to
+  exist once its last member leaves.
+
+### Security note
+
+There is no message encryption and no authentication of identities. The group
+key is a hash of the name and passphrase, which keeps names off the wire and
+gates discovery, but it does not encrypt traffic and is open to offline guessing
+of weak names/passphrases by someone sniffing your LAN. Treat Ephemera as a
+convenient local-network tool among people you trust, not a secure messenger.
 
 ## Requirements
 
@@ -148,12 +168,20 @@ The uninstaller is regenerated from `installer/uninstall-ephemera.ps1` by
 
 ## Using it
 
+- **Join or create a group:** on the start screen, type a group name (and a
+  passphrase to lock it, optional) and click **Join or create group**. If someone
+  is already hosting that group on your network you join them; otherwise you start
+  it.
+- **Leave / switch groups:** the power icon on the far-left rail returns you to the
+  start screen, where you can join a different group. You're in one at a time, and
+  leaving clears that group's messages and members.
 - **Send a message:** type in the box and press Enter.
-- **Create a channel:** the **+** next to "Text Channels". New channels are
-  shared with everyone currently connected.
-- **Change your name:** the pencil icon next to your name at the bottom left.
+- **Create a channel:** the **+** next to "Text Channels". New channels are shared
+  with everyone currently in the group.
+- **Change your name:** the pencil icon by your name (bottom-left), or "change" on
+  the start screen.
 - **Connect across networks:** the **+** on the far-left rail, then enter the
-  peer's IP and port.
+  peer's IP and port (you must both be in a group with the same name and passphrase).
 
 ## Notes and limits
 

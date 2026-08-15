@@ -38,6 +38,8 @@ function startNode() {
   node.on('chat', (msg) => send('net:chat', msg));
   node.on('typing', (t) => send('net:typing', t));
   node.on('channel', (c) => send('net:channel', c));
+  node.on('group-joined', (g) => send('net:group-joined', g));
+  node.on('group-left', (g) => send('net:group-left', g));
   node.on('error', (err) => send('net:error', String(err && err.message || err)));
   node.start();
 }
@@ -67,6 +69,8 @@ function setupAutoUpdate() {
 ipcMain.handle('update:install', () => autoUpdater.quitAndInstall());
 ipcMain.handle('net:get-self', () => (node ? node.self() : null));
 ipcMain.handle('net:get-peers', () => (node ? node.peerList() : []));
+ipcMain.handle('net:join-group', (_e, { name, passphrase }) => node && node.joinGroup(name, passphrase));
+ipcMain.handle('net:leave-group', () => node && node.leaveGroup());
 ipcMain.handle('net:send-chat', (_e, { channel, text }) => node && node.sendChat(channel, text));
 ipcMain.handle('net:set-username', (_e, name) => node && node.setUsername(name));
 ipcMain.handle('net:connect-peer', (_e, { host, port }) => node && node.connectTo(host, port));

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;" />
+  <title>Ephemera</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Server rail -->
+    <nav class="rail">
+      <div class="server-icon active" title="Ephemera (LAN)">E</div>
+      <button id="add-peer" class="server-icon add" title="Connect to a peer by IP">+</button>
+    </nav>
+
+    <!-- Channels sidebar -->
+    <aside class="channels">
+      <header class="channels-header">
+        <span>Ephemera</span>
+        <span class="net-badge" id="net-badge" title="Local peer-to-peer network">LAN</span>
+      </header>
+      <div class="channels-list-wrap">
+        <div class="channels-group-label">
+          <span>Text Channels</span>
+          <button id="add-channel" title="Create channel">+</button>
+        </div>
+        <ul id="channel-list"></ul>
+      </div>
+      <div class="user-panel">
+        <div class="avatar" id="self-avatar"></div>
+        <div class="user-panel-meta">
+          <div class="user-panel-name" id="self-name">…</div>
+          <div class="user-panel-status">Ephemeral · this session only</div>
+        </div>
+        <button id="edit-name" title="Change display name">✎</button>
+      </div>
+    </aside>
+
+    <!-- Main chat -->
+    <main class="chat">
+      <header class="chat-header">
+        <span class="hash">#</span>
+        <span id="current-channel">general</span>
+        <span class="chat-header-divider"></span>
+        <span class="chat-header-topic">Messages vanish when every client closes.</span>
+      </header>
+      <div id="messages" class="messages"></div>
+      <div id="typing" class="typing-indicator"></div>
+      <div class="composer">
+        <input id="composer-input" type="text" autocomplete="off"
+               placeholder="Message #general" maxlength="2000" />
+      </div>
+    </main>
+
+    <!-- Members -->
+    <aside class="members">
+      <div class="members-label">Online — <span id="member-count">1</span></div>
+      <ul id="member-list"></ul>
+    </aside>
+  </div>
+
+  <!-- Update banner -->
+  <div id="update-banner" class="update-banner hidden">
+    <span class="update-dot"></span>
+    <span id="update-text" class="update-text"></span>
+    <button id="update-install" class="update-btn hidden">Restart now</button>
+    <button id="update-dismiss" class="update-close" title="Dismiss">&times;</button>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <h3 id="modal-title">Title</h3>
+      <p id="modal-desc" class="modal-desc"></p>
+      <div id="modal-fields"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn ghost">Cancel</button>
+        <button id="modal-ok" class="btn primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+  "name": "ephemera",
+  "version": "1.0.1",
+  "description": "A serverless, peer-to-peer, ephemeral Discord-style chat client. No central server; all data lives in RAM and is lost on close.",
+  "main": "main.js",
+  "author": "xeno-lab <xeno@xeno-lab.org>",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "icon": "node build/make-icon.js",
+    "build:uninstaller": "node installer/build-uninstaller.js",
+    "prebuild": "npm run icon && npm run build:uninstaller",
+    "dist": "npm run prebuild && electron-builder --win nsis --publish never",
+    "release": "npm run prebuild && electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "org.xenolab.ephemera",
+    "productName": "Ephemera",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "network.js",
+      "preload.js",
+      "renderer/**/*",
+      "!**/*.map"
+    ],
+    "extraFiles": [
+      { "from": "installer/Uninstall Ephemera.cmd", "to": "Uninstall Ephemera.cmd" }
+    ],
+    "win": {
+      "target": ["nsis"],
+      "icon": "build/icon.ico",
+      "artifactName": "Ephemera-Setup-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "xenogrinder",
+        "repo": "ephemera",
+        "releaseType": "release"
+      }
+    ],
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Ephemera",
+      "runAfterFinish": true
+    }
+  }
+}
